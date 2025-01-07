@@ -2,26 +2,32 @@ import serial
 import time
 import os, requests
 
-arduino_port = "COM5"  # Update with your Arduino port
+arduino_port = "COM3"  
 baud_rate = 9600
 ph_live_file = "ph_log_live.txt"
 temp_live_file = "temperature_log_live.txt"
 ph_history_file = "ph_log.txt"
 temp_history_file = "temperature_log.txt"
 config_url = "https://www.dropbox.com/scl/fi/24fbs6keuq8n6p9td4zdy/config.txt?rlkey=5rehn90y4j80bd3or404o0ebd&st=4q7y918b&dl=1"
-config_file_path = "config.txt"  # Local path to save the config file
+config_file_path = "config.txt"  
 
-# Download the configuration file and save it locally
-try:
-    response = requests.get(config_url)
-    with open(config_file_path, "w") as file:
-        file.write(response.text)
-    print("Configuration file downloaded successfully.")
-except requests.exceptions.RequestException as e:
-    print(f"Error downloading configuration file: {e}")
-    exit(1)
+last_modified_time = 0  
 
-last_modified_time = os.path.getmtime(config_file_path)
+def download_config():
+    """
+    Downloads the configuration file from the given URL and saves it locally.
+    Returns the content of the file and its modification time.
+    """
+    try:
+        response = requests.get(config_url)
+        response.raise_for_status() 
+        with open(config_file_path, "w") as file:
+            file.write(response.text)
+        print("Configuration file downloaded successfully.")
+        return response.text, os.path.getmtime(config_file_path)
+    except requests.exceptions.RequestException as e:
+        print(f"Error downloading configuration file: {e}")
+        return None, last_modified_time
 
 def send_configuration_to_arduino(ser, config_data):
     try:
@@ -32,9 +38,10 @@ def send_configuration_to_arduino(ser, config_data):
         print(f"Error sending configuration: {e}")
 
 def log_sensor_data(ser):
-    global last_modified_time  # Use the global last_modified_time variable
+    global last_modified_time 
 
     try:
+        # Open history files
         with open(ph_history_file, "a") as ph_history, open(temp_history_file, "a") as temp_history:
             if ph_history.tell() == 0:
                 ph_history.write("Timestamp, pH\n")
@@ -42,15 +49,13 @@ def log_sensor_data(ser):
                 temp_history.write("Timestamp, Temperature (C), Temperature (F)\n")
 
             while True:
-                # Check if the configuration file has been modified every 5 seconds
                 time.sleep(5)
-                current_modified_time = os.path.getmtime(config_file_path)
-                if current_modified_time != last_modified_time:
+                config_content, current_modified_time = download_config()
+                
+                if config_content is not None and current_modified_time != last_modified_time:
                     last_modified_time = current_modified_time
                     print("Configuration file updated. Sending new configuration...")
-                    # Read the updated config and send it to the Arduino
-                    with open(config_file_path, "r") as config_file:
-                        send_configuration_to_arduino(ser, config_file.read())
+                    send_configuration_to_arduino(ser, config_content)
 
                 if ser.in_waiting > 0:
                     line = ser.readline().decode("utf-8").strip()
@@ -86,7 +91,7 @@ def log_sensor_data(ser):
 if __name__ == "__main__":
     try:
         print("Connecting to Arduino...")
-        ser = serial.Serial(arduino_port, baud_rate, timeout=3)  # Added timeout
+        ser = serial.Serial(arduino_port, baud_rate, timeout=3)
         print(f"Connected to Arduino on {arduino_port}.")
         
         log_sensor_data(ser)

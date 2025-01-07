@@ -1,4 +1,4 @@
-red=232
-green=211
-blue=244
-mode=1
+red=57
+green=234
+blue=66
+mode=2

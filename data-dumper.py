@@ -76,7 +76,6 @@ def main():
         return
 
     files_to_upload = {
-        'live-monitor/config.txt': '/live-monitor/config.txt',
         'live-monitor/ph_log_live.txt': '/live-monitor/ph_log_live.txt',
         'live-monitor/ph_log.txt': '/live-monitor/ph_log.txt',
         'live-monitor/temperature_log_live.txt': '/live-monitor/temperature_log_live.txt',
